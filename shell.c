@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 /*
 This program is composed of two functions: main() and getcmd(). The
 getcmd() function reads in the user’s next command, and then parses it into separate tokens that are
@@ -93,9 +94,9 @@ can be used by the fg command to bring the job to the foreground (as explained a
 /*jobs command: This command takes no argument. It lists all the jobs that are running in the background */
 
 int main(void) {
-  char *args[20];
   int bg = 0;
   while (1) {
+    char *args[20];
     bg = 0;
     int cnt = getcmd("\nsh>>  ", args, &bg);
     printf("The command entered has %d arguments\n", cnt);
@@ -107,26 +108,79 @@ int main(void) {
       printf("Background not enabled..\n");
 
     // check if need pipe
-    int pipe = 0;
+    int isPipe = 0;
+    int pipeIndex = 0;
     for (int i = 0; i < cnt; i++) {
       if (strcmp(args[i], "|") == 0) {
-        pipe = 1;
+        isPipe = 1;
         args[i] = NULL;
+        pipeIndex = i;
       }
     }
+    // if pipe, then let parent process wait for the child process to finish the input command
+    if (isPipe == 1) {
+      printf("Pipe detected..\n");
+      char *args1[20]; // fisrt command and its arguments
+      char *args2[20]; // second command and its arguments
+      int i = 0;
+      for (; i < pipeIndex; i++)
+        args1[i] = args[i];
+      args1[i] = NULL;
+      int j = 0;
+      for (i = pipeIndex + 1; i < cnt; i++, j++)
+        args2[j] = args[i];
+      args2[j] = NULL;
+
+      // create a pipe
+      int fd[2];
+      pipe(fd);
+      int cid = fork();
+      if (cid == 0) {
+        close(1);
+        dup(fd[1]);
+        close(fd[0]);
+        execvp(args1[0], args1);
+        printf("Command not found..\n");
+        exit(0);
+      } else if (cid > 0) {
+        int cid2 = fork();
+        if (cid2 == 0) {
+          close(0);
+          dup(fd[0]);
+          close(fd[1]);
+          execvp(args2[0], args2);
+          printf("Command not found..\n");
+          exit(0);
+        } else if (cid2 > 0) {
+          close(fd[0]);
+          close(fd[1]);
+          wait(NULL);
+          wait(NULL);
+        } else {
+          printf("Error..\n");
+          exit(0);
+        }
+      } else {
+        printf("Error..\n");
+        exit(0);
+      }
+      continue;
+    }
+    printf("No pipe detected..\n");
     int cid = fork();
     if (cid == 0) {
       // check if need to redirect..
-      int redirect = 0;
+      int isRedirect = 0;
       char *file;
       for (int i = 0; i < cnt; i++) {
         if (strcmp(args[i], ">") == 0) {
-          redirect = 1;
+          isRedirect = 1;
           file = args[i + 1];
           args[i] = NULL;
         }
       }
-      if (redirect) {
+      if (isRedirect) {
+        printf("Redirect detected..\n");
         close(1);
         open(file, O_CREAT | O_WRONLY | O_TRUNC, 0777);
       }

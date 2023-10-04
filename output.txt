@@ -1,3 +1,4 @@
-output.txt
-shell
-shell.c
+total 26
+-rwxr-xr-x 1 xchen191 nogroup     0 Oct  4 18:57 output.txt
+-rwxr-xr-x 1 xchen191 nogroup 16888 Oct  4 18:56 shell
+-rw-r--r-- 1 xchen191 nogroup  6625 Oct  4 18:41 shell.c
