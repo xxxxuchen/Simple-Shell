@@ -49,13 +49,22 @@ int getcmd(char *prompt, char *args[], int *background) {
   return i;
 }
 
-// Below are some built-in commands.. implement by self..
+// store the information of background processes
+struct bgProcess {
+  int pid;
+  char *cmd;
+};
 
-/*echo command: This command takes a string with spaces in between as an argument. It prints theargument to the screen.*/
-void echo(char *args[], int cnt) {
-  for (int i = 1; i < cnt; i++)
-    printf("%s ", args[i]);
-  printf("\n");
+// Below are self built-in commands..
+
+/*echo command: This command takes a string with spaces in between as an argument. return concatenated string*/
+char *echo(char *args[], int cnt) {
+  char *str = (char *)malloc(1024 * sizeof(char));
+  for (int i = 1; i < cnt; i++) {
+    strcat(str, args[i]);
+    strcat(str, " ");
+  }
+  return str;
 }
 
 /*cd command: This command takes a single argument that is a string. It changes into that directory. You
@@ -92,9 +101,17 @@ command line. Each line in the list shown by the jobs command should have a numb
 can be used by the fg command to bring the job to the foreground (as explained above). */
 
 /*jobs command: This command takes no argument. It lists all the jobs that are running in the background */
+void jobs(struct bgProcess list[], int size) {
+  for (int i = 0; i < size; i++) {
+    printf("%d %s\n", list[i].pid, list[i].cmd);
+  }
+}
 
 int main(void) {
   int bg = 0;
+  struct bgProcess bgList[16];
+  int bgSize = 0;
+
   while (1) {
     char *args[20];
     bg = 0;
@@ -106,6 +123,33 @@ int main(void) {
       printf("Background enabled..\n");
     else
       printf("Background not enabled..\n");
+
+    // check if it is a built-in command
+    if (strcmp(args[0], "echo") == 0) {
+      char *str = echo(args, cnt);
+      printf("%s\n", str);
+      free(str);
+      continue;
+    }
+    if (strcmp(args[0], "cd") == 0) {
+      cd(args, cnt);
+      continue;
+    }
+    if (strcmp(args[0], "pwd") == 0) {
+      pwd();
+      continue;
+    }
+    if (strcmp(args[0], "exit") == 0) {
+      // exit(0);
+    }
+    if (strcmp(args[0], "fg") == 0) {
+      // fg(args, cnt);
+      continue;
+    }
+    if (strcmp(args[0], "jobs") == 0) {
+      jobs(bgList, bgSize);
+      continue;
+    }
 
     // check if need pipe
     int isPipe = 0;
@@ -166,7 +210,7 @@ int main(void) {
       }
       continue;
     }
-    printf("No pipe detected..\n");
+
     int cid = fork();
     if (cid == 0) {
       // check if need to redirect..
@@ -188,9 +232,19 @@ int main(void) {
       printf("Command not found..\n");
       exit(0);
     } else if (cid > 0) {
-      if (bg == 0) {
+      if (bg == 0) { // no background
         wait(NULL);
         printf("Child completed..\n");
+      } else { // background, construct a bgProcess and store it in bgList
+        struct bgProcess bgp;
+        bgp.pid = cid;
+        char *arguments = echo(args, cnt);
+        char *wholeCmd = args[0];
+        strcat(wholeCmd, " ");
+        strcat(wholeCmd, arguments);
+        free(arguments);
+        bgp.cmd = wholeCmd;
+        bgList[bgSize++] = bgp;
       }
     } else {
       printf("Error..\n");
