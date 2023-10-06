@@ -46,6 +46,8 @@ int getcmd(char *prompt, char *args[], int *background) {
     if (strlen(token) > 0)
       args[i++] = token;
   }
+  free(token);
+  free(line);
   return i;
 }
 
@@ -116,6 +118,7 @@ int main(void) {
     char *args[20];
     bg = 0;
     int cnt = getcmd("\nsh>>  ", args, &bg);
+    args[cnt] = NULL;
     printf("The command entered has %d arguments\n", cnt);
     for (int i = 0; i < cnt; i++)
       printf("  args[%d] = %s\n", i, args[i]);
