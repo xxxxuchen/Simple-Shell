@@ -5,22 +5,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-/*
-This program is composed of two functions: main() and getcmd(). The
-getcmd() function reads in the user’s next command, and then parses it into separate tokens that are
-used to fill the argument vector for the command to be executed. If the command is to be run in the
-background (concurrently, no waiting for child process), it will end with ‘&’, and getcmd() will update the background
-parameter
-so the main() function can act accordingly. The program terminates when the user enters <Control><D>
-because getcmd() invokes exit().
-The main() calls getcmd(), which waits for the user to enter a command. The contents of the
-command entered by the user are loaded into the args array. For example, if the user enters ls –l at
-the command prompt, args[0] is set equal to the string “ls” and args[1] is set to the string to “–
-l”. (By “string,” we mean a null-terminated C-style string variable.)
-This programming assignment is organized into three parts: (1) creating the child process and
-executing the command in the child, (2) redirections, and (3) piping.
-*/
-
 // getcmd() reads in the next command line, separating it into distinct tokens
 int getcmd(char *prompt, char *args[], int *background) {
   int length, i = 0;
@@ -51,17 +35,27 @@ int getcmd(char *prompt, char *args[], int *background) {
   return i;
 }
 
-// store the information of background processes
 struct bgProcess {
-  int pid;
-  char *cmd;
+  int pid; // process id
+  char *cmd; // command, e.g. ls -l
 };
 
-// Below are self built-in commands..
+// a helper function to remove a process that has pid from the background list
+int removeProcess(struct bgProcess list[], int size, int pid) {
+  for (int i = 0; i < size; i++) {
+    if (list[i].pid == pid) {
+      for (int j = i; j < size - 1; j++) {
+        list[j] = list[j + 1];
+      }
+      return 1; // success remove
+    }
+  }
+}
 
-/*echo command: This command takes a string with spaces in between as an argument. return concatenated string*/
+/* _________self built-in commands__________ */
 char *echo(char *args[], int cnt) {
-  char *str = (char *)malloc(1024 * sizeof(char));
+  char *str = malloc(1024);
+  strcpy(str, "");
   for (int i = 1; i < cnt; i++) {
     strcat(str, args[i]);
     strcat(str, " ");
@@ -69,41 +63,58 @@ char *echo(char *args[], int cnt) {
   return str;
 }
 
-/*cd command: This command takes a single argument that is a string. It changes into that directory. You
-are basically calling the chdir() system call with the string that is passed in as the argument. You can
-optionally print the current directory (present working directory) if there are no arguments. You don’t
-need to support additional features (e.g., those found in production shells like bash).*/
 void cd(char *args[], int cnt) {
   if (cnt == 1) {
-    char cwd[1024];
-    getcwd(cwd, sizeof(cwd));
-    printf("Current working dir: %s\n", cwd);
+    printf("Please provide a directory!\n");
   } else {
-    if (chdir(args[1]) != 0)
-      printf("Error..\n");
+    if (chdir(args[1]) != 0) {
+      printf("Please enter a valid dirctory!\n");
+    }
   }
 }
 
-/*pwd command: This command takes no argument. It prints the present working directory.*/
 void pwd() {
   char cwd[1024];
   getcwd(cwd, sizeof(cwd));
-  printf("Current working dir: %s\n", cwd);
+  printf("Current working dirctory: %s\n", cwd);
 }
 
-/*exit command: This command takes no argument. It terminates the shell. It will terminate any jobs
-that are running in the background before terminating the shell.*/
+void myExit(struct bgProcess list[], int size) {
+  for (int i = 0; i < size; i++) {
+    kill(list[i].pid, SIGKILL);
+  }
+  exit(0);
+}
 
-/*fg command: This command takes an optional integer parameter as an argument. The background can
-contain many jobs you could have started with & at the end. The fg command should be called with a
-number (e.g., fg 3) and it will pick the job numbered 3 (assuming it exists) and put it in the foreground.
-The command jobs should list all the jobs that are running in the background at any given time. These
-are jobs that are put in the background by running the command with & as the last character in the
-command line. Each line in the list shown by the jobs command should have a number identifier that
-can be used by the fg command to bring the job to the foreground (as explained above). */
+void fg(char *args[], int cnt, struct bgProcess bgList[], int *bgSize) {
+  if (*bgSize == 0) {
+    printf("You have not created the background process yet...\n");
+    return;
+  }
+  int pid;
+  int status;
+  if (cnt == 1) { // if no pid, bring the last background process to the foreground
+    pid = bgList[*bgSize - 1].pid;
+    waitpid(pid, &status, 0);
+  } else {
+    int pid = atoi(args[1]);
+    waitpid(pid, &status, 0);
+  }
+  // remove the process from the background list
+  if (removeProcess(bgList, *bgSize, pid)) {
+    printf("Process %d has been removed from the background list.\n", pid);
+  } else {
+    printf("Process %d not found in the background list.\n", pid);
+  }
+  *bgSize -= 1;
+}
 
-/*jobs command: This command takes no argument. It lists all the jobs that are running in the background */
 void jobs(struct bgProcess list[], int size) {
+  if (size == 0) {
+    printf("There is no background process.., use & to run process background\n");
+    return;
+  }
+  printf("PID\tCMD\t(Please pass PID to fg command to bring it back to the foreground)\n");
   for (int i = 0; i < size; i++) {
     printf("%d %s\n", list[i].pid, list[i].cmd);
   }
@@ -118,14 +129,17 @@ int main(void) {
     char *args[20];
     bg = 0;
     int cnt = getcmd("\nsh>>  ", args, &bg);
+    if (cnt == 0){
+      printf("Please enter a valid command!\n");
+      continue;
+    }
     args[cnt] = NULL;
-    printf("The command entered has %d arguments\n", cnt);
-    for (int i = 0; i < cnt; i++)
-      printf("  args[%d] = %s\n", i, args[i]);
-    if (bg)
-      printf("Background enabled..\n");
-    else
-      printf("Background not enabled..\n");
+
+    // check if bgList is full
+    if (bgSize == 16 && bg) {
+      printf("Background is full, you may want to use fg command to bring some process foreground first\n");
+      continue;
+    }
 
     // check if it is a built-in command
     if (strcmp(args[0], "echo") == 0) {
@@ -143,13 +157,15 @@ int main(void) {
       continue;
     }
     if (strcmp(args[0], "exit") == 0) {
-      // exit(0);
+      myExit(bgList, bgSize);
+      continue;
     }
     if (strcmp(args[0], "fg") == 0) {
-      // fg(args, cnt);
+      fg(args, cnt, bgList, &bgSize);
       continue;
     }
     if (strcmp(args[0], "jobs") == 0) {
+      printf("bgSize: %d\n", bgSize);
       jobs(bgList, bgSize);
       continue;
     }
@@ -164,18 +180,21 @@ int main(void) {
         pipeIndex = i;
       }
     }
-    // if pipe, then let parent process wait for the child process to finish the input command
+    // if pipe, then let parent process wait for the child process to finish executing the input command
     if (isPipe == 1) {
       printf("Pipe detected..\n");
       char *args1[20]; // fisrt command and its arguments
       char *args2[20]; // second command and its arguments
       int i = 0;
-      for (; i < pipeIndex; i++)
+      for (; i < pipeIndex; i++) {
         args1[i] = args[i];
+      }
       args1[i] = NULL;
       int j = 0;
-      for (i = pipeIndex + 1; i < cnt; i++, j++)
+      for (i = pipeIndex + 1; i < cnt; i++) {
         args2[j] = args[i];
+        j++;
+      }
       args2[j] = NULL;
 
       // create a pipe
@@ -235,9 +254,8 @@ int main(void) {
       printf("Command not found..\n");
       exit(0);
     } else if (cid > 0) {
-      if (bg == 0) { // no background
-        wait(NULL);
-        printf("Child completed..\n");
+      if (bg == 0) { // foreground
+        waitpid(cid, NULL, 0);
       } else { // background, construct a bgProcess and store it in bgList
         struct bgProcess bgp;
         bgp.pid = cid;
