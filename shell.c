@@ -1,3 +1,12 @@
+/**
+ * Author: Xu Chen
+ * McGill ID: 260952566
+ * Assumptions: 
+ * - jobs command will list the PID and the command name (with arguments) of the background process.
+ * - For fg command, use the PID that listed in the jobs command to bring the process back to the foreground.
+ * - If there is no PID provided, the last background process will be brought back to the foreground.
+ * - echo hello world will print hello world (without quotes). echo "hello world" will print "hello world" (with quotes).
+*/
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,15 +41,15 @@ int getcmd(char *prompt, char *args[], int *background) {
   }
   free(token);
   free(line);
-  return i;
+  return i; // number of tokens
 }
 
 struct bgProcess {
   int pid; // process id
-  char *cmd; // command, e.g. ls -l
+  char *cmd; // command string, e.g. ls -l
 };
 
-// a helper function to remove a process that has pid from the background list
+// a helper function to remove a process with its pid from the background list
 int removeProcess(struct bgProcess list[], int size, int pid) {
   for (int i = 0; i < size; i++) {
     if (list[i].pid == pid) {
@@ -80,6 +89,7 @@ void pwd() {
 }
 
 void myExit(struct bgProcess list[], int size) {
+  // kill all background processes first
   for (int i = 0; i < size; i++) {
     kill(list[i].pid, SIGKILL);
   }
