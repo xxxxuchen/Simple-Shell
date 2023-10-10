@@ -1,12 +1,12 @@
 /**
  * Author: Xu Chen
  * McGill ID: 260952566
- * Assumptions: 
+ * Assumptions:
  * - jobs command will list the PID and the command name (with arguments) of the background process.
  * - For fg command, use the PID that listed in the jobs command to bring the process back to the foreground.
  * - If there is no PID provided, the last background process will be brought back to the foreground.
  * - echo hello world will print hello world (without quotes). echo "hello world" will print "hello world" (with quotes).
-*/
+ */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +45,7 @@ int getcmd(char *prompt, char *args[], int *background) {
 }
 
 struct bgProcess {
-  int pid; // process id
+  int pid;   // process id
   char *cmd; // command string, e.g. ls -l
 };
 
@@ -107,7 +107,7 @@ void fg(char *args[], int cnt, struct bgProcess bgList[], int *bgSize) {
     pid = bgList[*bgSize - 1].pid;
     waitpid(pid, &status, 0);
   } else {
-    int pid = atoi(args[1]);
+    pid = atoi(args[1]);
     waitpid(pid, &status, 0);
   }
   // remove the process from the background list
@@ -139,7 +139,7 @@ int main(void) {
     char *args[20];
     bg = 0;
     int cnt = getcmd("\nsh>>  ", args, &bg);
-    if (cnt == 0){
+    if (cnt == 0) {
       printf("Please enter a valid command!\n");
       continue;
     }
@@ -175,7 +175,6 @@ int main(void) {
       continue;
     }
     if (strcmp(args[0], "jobs") == 0) {
-      printf("bgSize: %d\n", bgSize);
       jobs(bgList, bgSize);
       continue;
     }
@@ -192,7 +191,6 @@ int main(void) {
     }
     // if pipe, then let parent process wait for the child process to finish executing the input command
     if (isPipe == 1) {
-      printf("Pipe detected..\n");
       char *args1[20]; // fisrt command and its arguments
       char *args2[20]; // second command and its arguments
       int i = 0;
@@ -256,7 +254,6 @@ int main(void) {
         }
       }
       if (isRedirect) {
-        printf("Redirect detected..\n");
         close(1);
         open(file, O_CREAT | O_WRONLY | O_TRUNC, 0777);
       }
