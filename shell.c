@@ -63,7 +63,7 @@ int removeProcess(struct bgProcess list[], int size, int pid) {
 
 /* _________self built-in commands__________ */
 char *echo(char *args[], int cnt) {
-  char *str = malloc(1024);
+  char *str = malloc(50);
   strcpy(str, "");
   for (int i = 1; i < cnt; i++) {
     strcat(str, args[i]);
@@ -77,7 +77,7 @@ void cd(char *args[], int cnt) {
     printf("Please provide a directory!\n");
   } else {
     if (chdir(args[1]) != 0) {
-      printf("Please enter a valid dirctory!\n");
+      printf("Please enter a valid directory!\n");
     }
   }
 }
@@ -85,7 +85,7 @@ void cd(char *args[], int cnt) {
 void pwd() {
   char cwd[1024];
   getcwd(cwd, sizeof(cwd));
-  printf("Current working dirctory: %s\n", cwd);
+  printf("Current working directory: %s\n", cwd);
 }
 
 void myExit(struct bgProcess list[], int size) {
@@ -156,6 +156,7 @@ int main(void) {
       char *str = echo(args, cnt);
       printf("%s\n", str);
       free(str);
+      str = NULL;
       continue;
     }
     if (strcmp(args[0], "cd") == 0) {
@@ -189,9 +190,9 @@ int main(void) {
         pipeIndex = i;
       }
     }
-    // if pipe, then let parent process wait for the child process to finish executing the input command
+    // if pipe, build two commands separately
     if (isPipe == 1) {
-      char *args1[20]; // fisrt command and its arguments
+      char *args1[20]; // first command and its arguments
       char *args2[20]; // second command and its arguments
       int i = 0;
       for (; i < pipeIndex; i++) {
@@ -217,6 +218,7 @@ int main(void) {
         printf("Command not found..\n");
         exit(0);
       } else if (cid > 0) {
+        waitpid(cid, NULL, 0); // wait for the child process to finish executing the first input command
         int cid2 = fork();
         if (cid2 == 0) {
           close(0);
@@ -228,8 +230,7 @@ int main(void) {
         } else if (cid2 > 0) {
           close(fd[0]);
           close(fd[1]);
-          wait(NULL);
-          wait(NULL);
+          waitpid(cid2, NULL, 0);
         } else {
           printf("Error..\n");
           exit(0);
