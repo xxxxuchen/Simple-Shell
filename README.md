@@ -1,6 +1,8 @@
 # Simple Shell
-### 一个基于系统调用和多进程的模拟 Shell 程序
-A simple shell running on Linux, which support:
+
+## A simple self programming shell which emulate the bash shell
+
+the shell is built using system call, which support:
 - redirection
 - pipe
 - normal bash commands and some build-in commands
